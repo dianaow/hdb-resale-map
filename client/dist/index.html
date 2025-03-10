@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3&family=Montserrat:wght@600&display=swap" rel="stylesheet">
+  <style>
+    h1, h2, h3, p, text {
+      padding: 5px;
+      margin: 0px;
+      border: 0px;
+      display: inline-block;
+      color:#f5f5f5;
+    }
+    h1, h2, span {
+      font-family: 'Montserrat', sans-serif;
+      color:#f5f5f5;
+    }
+    h4 {
+      padding-left: 5px;
+      margin: 0px;
+      color: #262626;
+      display: block;
+    }
+    a, a:hover, a:visited {
+      color: white;
+      text-decoration: underline;
+    }
+    body { 
+      font-family: 'Source Sans 3', sans-serif;
+      margin:0;
+      top:0;
+      right:0;
+      bottom:0;
+      left:0;
+      background-color:#171717;
+      position: relative;
+    }
+    #title {
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      display: flex;
+      flex-direction: row;
+      width: 100vw;
+      height: 100vh;
+    }
+    #main {
+      background-color: transparent;
+      height: 100%;
+      padding: 20px;
+      width: 40%
+    }
+    #map-container {
+      width: 60%;
+      height: 100%;
+      position: relative;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+    }  
+    #updatePitchButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: white;
+      padding: 10px;
+      cursor: pointer;
+      z-index: 1;
+    }
+    #chart-timeline {
+      width: 100%;
+      height: 120px;
+      position: relative;
+    }
+    #chart-resale-prices {
+      width: 100%;
+      min-height: 435px;
+      margin-top: 15px;
+    }
+    #context {
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
+      width: 160px;
+    }
+
+    /* Button for opening dropdown */
+    .dropdown-button {
+      display: block;
+      width: 100%;
+      background-color: transparent;
+      border: 1px solid #fafafa;
+      color: #fafafa;
+      cursor: pointer;
+      outline: none;
+      white-space: nowrap;
+      overflow-x: auto;
+      padding: 2px;
+    }
+
+    /* Dropdown menu */
+    .dropdown-menu {
+      position: absolute;
+      z-index: 20;
+      margin-top: 4px;
+      width: 100%;
+      background-color: #171717;
+      border: 1px solid #e5e7eb; /* neutral-200 */
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      max-height: 240px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .dropdown-item:hover {
+      background-color: #262626 /* neutral-100 */
+    }
+
+    .dropdown-item input {
+      margin-right: 8px;
+    }
+
+    .dropdown-open .dropdown-menu {
+      display: block;
+    }
+
+    .legend-pill {
+      color: white;
+      border-radius: 0px; 
+      padding: 4px 8px;
+      text-align: center;
+      display: inline-block;
+      font-size: 0.8em;
+      margin: 4px 3px;
+    }
+    .color-toggle {
+      color: #f5f5f5; 
+      border: 1px solid #f5f5f5;
+      background-color: transparent;
+      cursor: pointer;
+      border-radius: 0px; 
+      padding: 4px 8px;
+      text-align: center;
+      display: inline-block;
+      font-size: 0.8em;
+      margin: 4px 2px;
+    }
+    .color-toggle:hover {
+      color: #171717; 
+      background-color: #f5f5f5;
+      border: 1px solid #f5f5f5;
+      cursor: pointer;
+    }
+
+    /* Rotate the chevron when the dropdown is open */
+    #dropdown.open .dropdown-button svg {
+      transform: rotate(180deg);
+      transition: transform 0.3s ease;
+    }
+
+    /* Media query for larger screens */
+    @media (min-width: 1800px) { /* Adjust the min-width as necessary */
+      #chart-resale-prices {
+        min-height: 600px; 
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-xGjjcyn9.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CYq10Fru.css">
+</head>
+
+<body>
+  
+  <div class='container'>
+    <div id='main'>
+      <div id='title'>
+        <h2>Singapore's HDB Properties</h2>
+        <h3>Completion Timeline and Resale Market</h3>
+      </div> 
+      <div id='context'>
+        <div id='stats'>
+          <p><span id="total" style="font-weight:bold"></span> properties in </p>
+          <div class="dropdown-container" id="dropdown">
+            <button type="button" class="dropdown-button" id="dropdown-btn">
+              <p>All Towns</p>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style="width: 16px; height: 16px;">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="dropdown-menu" id="dropdown-menu"></div>
+          </div> 
+          <p> completed between <span id="years" style="font-weight:bold"></span></p>
+        </div>
+        <div class='gLegend'></div>
+        <div class='color-legend'>
+          <div class='color-toggle'>Show age of properties</div>
+        </div>
+      </div>
+      <div id='chart-timeline'></div>
+      <div id='chart-resale-prices'></div>
+    </div>
+    <div id='map-container'>
+      <div id="map"></div>
+      <p style="position: absolute; top: 5px; left: 5px; color: black">Click on marker to show timeline of average resale price of all properties within the same street</p>
+      <div id="updatePitchButton">3D</div>
+    </div>
+  </div>
+  <div id="footer">
+    <p>Geocoding Code: <a href="https://github.com/ualsg/hdb3d-code">NUS Urban Analytics Lab</a>, Data Source: HDB, OSM, OneMap (2019)</p>
+  </div>
+</body>
+</html>
