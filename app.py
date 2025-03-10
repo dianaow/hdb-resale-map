@@ -1,7 +1,5 @@
 from pathlib import Path
-import time
 import json
-import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
@@ -16,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("data_extraction.log"),
+        #logging.FileHandler("data_extraction.log"),
         logging.StreamHandler()
     ]
 )

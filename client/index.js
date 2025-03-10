@@ -43,10 +43,10 @@ var axisColor = "#d4d4d4"
 
 async function init() {
   const endpoints = [
-    'http://localhost:3000/api/properties',
-    'http://localhost:3000/api/agg_prices',
-    'http://localhost:3000/api/geojson',
-    'http://localhost:3000/api/agg_address_prices'
+    '/api/properties',
+    '/api/agg_prices',
+    '/api/geojson',
+    '/api/agg_address_prices'
   ];
   
   const fetchPromises = endpoints.map(endpoint => 
@@ -1782,7 +1782,7 @@ function createTownsDropdown(geojson) {
       threeYearsAgo.setFullYear(currentDate.getFullYear() - 3);
       const threeYearsAgoYearMonth = threeYearsAgo.getFullYear() + '-' + String(threeYearsAgo.getMonth() + 1).padStart(2, '0');
 
-      const response = await fetch(`http://localhost:3000/api/prices?towns=${selectedTowns}&start_date=${threeYearsAgoYearMonth}&end_date=${currentYearMonth}`);
+      const response = await fetch(`/api/prices?towns=${selectedTowns}&start_date=${threeYearsAgoYearMonth}&end_date=${currentYearMonth}`);
       const data = await response.json();
 
       GLOBAL_PRICES_DATA = JSON.parse(data.prices)  // Store as global variable so that other filters have access to it
