@@ -1,7 +1,5 @@
 from pathlib import Path
-import time
 import json
-import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
@@ -16,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("data_extraction.log"),
+        #logging.FileHandler("data_extraction.log"),
         logging.StreamHandler()
     ]
 )
@@ -259,7 +257,7 @@ def get_prices_local():
     """
     try:
         # Get query parameters
-        start_date = request.args.get('start_date', '2017-01')
+        start_date = request.args.get('start_date', '2022-01')
         end_date = request.args.get('end_date', datetime.now().strftime('%Y-%m'))
 
         # Handle either single town or multiple towns
@@ -294,6 +292,7 @@ def get_prices_local():
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
 
         df_aggregated = df.groupby(['date', 'street', 'flat_type']).agg(price=('price', 'median')).reset_index()
+        #df_aggregated = df
 
         print(f"Returning {len(df_aggregated)} records")
    

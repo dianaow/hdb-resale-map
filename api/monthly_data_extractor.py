@@ -30,15 +30,7 @@ DATA_DIR.mkdir(exist_ok=True)
 
 # Define the paths for combined datasets
 PROPERTIES_FILE = DATA_DIR / 'properties_combined.json'
-LATEST_PRICES_FILE = DATA_DIR / 'prices_2017_onwards.csv'  # Prices from 2017 onwards
 LATEST_AGGPRICES_FILE = DATA_DIR / 'agg_prices.csv'
-PRICES_SEGMENTS = {
-    '1990-1999': DATA_DIR / 'prices_1990_1999.csv',
-    '2000-2012': DATA_DIR / 'prices_2000_2012.csv',
-    '2012-2014': DATA_DIR / 'prices_2012_2014.csv',
-    '2015-2016': DATA_DIR / 'prices_2015_2016.csv',
-    '2017-2025': LATEST_PRICES_FILE
-}
 
 def download_file(dataset_id, year=None, month=None, quarter=None):
     """
@@ -100,7 +92,7 @@ def download_file(dataset_id, year=None, month=None, quarter=None):
     
     # Construct query parameters
     query_params = {"filters": filters}
-    
+
     try:
         # Initiate download with query parameters
         initiate_download_response = s.get(
@@ -122,7 +114,7 @@ def download_file(dataset_id, year=None, month=None, quarter=None):
             poll_download_response = s.get(
                 f"https://api-open.data.gov.sg/v1/public/api/datasets/{dataset_id}/poll-download",
                 headers={"Content-Type": "application/json"},
-                json={}  # No filters needed for polling
+                json=query_params
             )
             
             poll_data = poll_download_response.json()
@@ -167,35 +159,6 @@ def download_file(dataset_id, year=None, month=None, quarter=None):
         logger.error(f"Error downloading data: {e}")
     
     return None
-
-def enrich_prices_data(df):
-    """
-    Perform any enrichment operations on the prices data
-    
-    Args:
-        df: DataFrame with the prices data
-        
-    Returns:
-        Enriched DataFrame
-    """
-    if df is None or len(df) == 0:
-        return df
-        
-    # Example enrichment operations:
-    # 1. Calculate price per square meter
-    if 'resale_price' in df.columns and 'floor_area_sqm' in df.columns:
-        df['price_per_sqm'] = df['resale_price'] / df['floor_area_sqm']
-    
-    # 2. Add month and year columns for easier filtering
-    if 'month' in df.columns:
-        df['year'] = df['month'].dt.year
-        df['month_num'] = df['month'].dt.month
-    
-    #3 Relabel columns
-    df.rename(columns={'month': 'date'}, inplace=True)
-    df.rename(columns={'resale_price': 'price'}, inplace=True)
-    
-    return df
 
 def tagging(d):
     if d['residential'] == "Y":
@@ -324,7 +287,6 @@ def update_latest_properties_dataset(year, month):
     
     Args:
         year: The year to extract
-        month: The month to extract
         
     Returns:
         Boolean indicating success
@@ -345,11 +307,11 @@ def update_latest_properties_dataset(year, month):
             logger.info(f"Loaded {len(existing_properties_df)} existing property records")
         
         # Download the new month's data
-        logger.info(f"Downloading properties data for {year}-{month:02d}")
-        new_properties_df = download_file(dataset_id, year=year, month=month)
+        logger.info(f"Downloading properties data for {year}")
+        new_properties_df = download_file(dataset_id, year)
         
         if new_properties_df is None or len(new_properties_df) == 0:
-            logger.warning(f"No new properties data found for {year}-{month:02d}")
+            logger.warning(f"No new properties data found for {year}")
             return False
             
         logger.info(f"Downloaded {len(new_properties_df)} new property records")
@@ -417,200 +379,6 @@ def update_latest_properties_dataset(year, month):
     except Exception as e:
         logger.error(f"Error updating properties dataset: {e}")
         return False
-
-def get_dataset_id_for_period(year):
-    """
-    Get the appropriate dataset ID based on the year
-    """
-    if 1990 <= year <= 1999:
-        return "d_ebc5ab87086db484f88045b47411ebc5"
-    elif 2000 <= year <= 2012:
-        return "d_43f493c6c50d54243cc1eab0df142d6a"
-    elif 2012 <= year <= 2014:
-        return "d_2d5ff9ea31397b66239f245f57751537"
-    elif 2015 <= year <= 2016:
-        return "d_ea9ed51da2787afaf8e51f827c304208"
-    elif year >= 2017:
-        return "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
-    else:
-        return None
-
-def update_latest_prices_dataset(year, month):
-    """
-    Update the latest prices dataset (2017 onwards) with new monthly data
-    
-    Args:
-        year: The year to extract
-        month: The month to extract
-        
-    Returns:
-        Boolean indicating success
-    """
-    # Only applicable for data from 2017 onwards
-    if year < 2017:
-        logger.warning(f"Year {year} is before 2017, not updating latest prices dataset")
-        return False
-    
-    dataset_id = get_dataset_id_for_period(year)
-    
-    if not dataset_id:
-        logger.error(f"No dataset ID found for year {year}")
-        return False
-    
-    try:
-        # Download the data for this month
-        month_df = download_file(dataset_id, year=year, month=month)
-        
-        if month_df is None or len(month_df) == 0:
-            logger.warning(f"No data found for {year}-{month:02d}")
-            return False
-        
-        # Enrich the data
-        month_df = enrich_prices_data(month_df)
-        
-        # Load existing dataset if it exists
-        if LATEST_PRICES_FILE.exists():
-            existing_df = pd.read_csv(LATEST_PRICES_FILE)
-            
-            # Convert date columns to datetime if needed
-            if 'month' in existing_df.columns and not pd.api.types.is_datetime64_dtype(existing_df['month']):
-                existing_df['month'] = pd.to_datetime(existing_df['month'])
-            
-            logger.info(f"Loaded existing dataset with {len(existing_df)} records")
-            
-            # Create a date range for the month we're adding
-            target_month = pd.to_datetime(f"{year}-{month:02d}-01")
-            month_end = (target_month + pd.offsets.MonthEnd(0)).date()
-            
-            # Remove any existing data for this month to avoid duplicates
-            if 'month' in existing_df.columns:
-                existing_df = existing_df[
-                    ~((existing_df['month'] >= target_month) & 
-                      (existing_df['month'] <= pd.Timestamp(month_end)))
-                ]
-                
-                logger.info(f"Removed existing data for {year}-{month:02d}, {len(existing_df)} records remain")
-            
-            # Combine with new data
-            combined_df = pd.concat([existing_df, month_df], ignore_index=True)
-            logger.info(f"Combined dataset now has {len(combined_df)} records")
-        else:
-            # If no existing file, just use the new data
-            combined_df = month_df
-            logger.info(f"Created new dataset with {len(combined_df)} records")
-        
-        # Save the combined dataset
-        combined_df.to_csv(LATEST_PRICES_FILE, index=False)
-        logger.info(f"Saved updated dataset to {LATEST_PRICES_FILE}")
-        
-        # Save metadata
-        metadata = {
-            'last_updated': datetime.now().isoformat(),
-            'last_month_added': f"{year}-{month:02d}",
-            'record_count': len(combined_df)
-        }
-        
-        with open(DATA_DIR / 'prices_latest_metadata.json', 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error updating latest prices dataset: {e}")
-        return False
-
-def initialize_price_segments():
-    """
-    Initialize the price segment files if they don't exist.
-    This should be run once to set up the historical data segments.
-    """
-    for period, file_path in PRICES_SEGMENTS.items():
-        if not file_path.exists():
-            logger.info(f"Initializing price segment for {period}")
-            
-            # Extract year range
-            years = period.split('-')
-            start_year = int(years[0])
-            end_year = int(years[1])
-            
-            # Get appropriate dataset ID
-            dataset_id = get_dataset_id_for_period(start_year)
-            
-            if not dataset_id:
-                logger.error(f"No dataset ID found for period {period}")
-                continue
-            
-            try:
-                # Download full dataset for this period
-                s = requests.Session()
-                
-                # initiate download
-                initiate_download_response = s.get(
-                    f"https://api-open.data.gov.sg/v1/public/api/datasets/{dataset_id}/initiate-download",
-                    headers={"Content-Type": "application/json"},
-                    json={}
-                )
-                
-                logger.info(f"Initiated download for {period} (dataset ID: {dataset_id})")
-                
-                # poll download
-                MAX_POLLS = 5
-                for i in range(MAX_POLLS):
-                    poll_download_response = s.get(
-                        f"https://api-open.data.gov.sg/v1/public/api/datasets/{dataset_id}/poll-download",
-                        headers={"Content-Type": "application/json"},
-                        json={}
-                    )
-                    
-                    poll_data = poll_download_response.json()
-                    
-                    if "data" in poll_data and "url" in poll_data['data']:
-                        download_url = poll_data['data']['url']
-                        logger.info(f"Download URL for {period}: {download_url}")
-                        
-                        # Download and load the CSV
-                        df = pd.read_csv(download_url)
-                        
-                        # Convert date columns if needed
-                        if 'month' in df.columns:
-                            df['month'] = pd.to_datetime(df['month'])
-                        
-                        # Filter to the specific year range
-                        if 'month' in df.columns:
-                            df = df[
-                                (df['month'].dt.year >= start_year) & 
-                                (df['month'].dt.year <= end_year)
-                            ]
-                        
-                        # Enrich the data
-                        df = enrich_prices_data(df)
-                        
-                        # Save to CSV
-                        df.to_csv(file_path, index=False)
-                        logger.info(f"Saved {len(df)} records for {period} to {file_path}")
-                        
-                        # Save metadata
-                        metadata = {
-                            'period': period,
-                            'created_date': datetime.now().isoformat(),
-                            'record_count': len(df)
-                        }
-                        
-                        metadata_path = DATA_DIR / f"prices_{start_year}_{end_year}_metadata.json"
-                        with open(metadata_path, 'w') as f:
-                            json.dump(metadata, f, indent=2)
-                        
-                        break
-                        
-                    if i == MAX_POLLS - 1:
-                        logger.error(f"{i+1}/{MAX_POLLS}: No result found for {period}")
-                    else:
-                        logger.info(f"{i+1}/{MAX_POLLS}: No result yet for {period}, continuing to poll")
-                    
-                    time.sleep(3)
-                
-            except Exception as e:
-                logger.error(f"Error initializing price segment for {period}: {e}")
 
 def update_latest_aggprices_dataset(year, month):
     """
@@ -686,24 +454,20 @@ def update_latest_aggprices_dataset(year, month):
         logger.error(f"Error updating latest prices dataset: {e}")
         return False
  
-
-def extract_monthly_data(year=None, month=None):
+def run(year=None, month=None):
     """
     Extract data for a specific month and update the combined datasets
     
     Args:
         year: The year to extract (defaults to current year)
-        month: The month to extract (defaults to previous month)
+        month: The month to extract (defaults to current month)
     """
-    # Default to previous month if not specified
     if year is None or month is None:
         today = datetime.now()
-        # Get the previous month
         first_of_month = datetime(today.year, today.month, 1)
-        prev_month = first_of_month - timedelta(days=1)
-        
-        year = year or prev_month.year
-        month = month or prev_month.month
+
+        year = year or first_of_month.year
+        month = month or first_of_month.month
     
     logger.info(f"Extracting data for {year}-{month:02d}")
     
@@ -711,14 +475,7 @@ def extract_monthly_data(year=None, month=None):
     properties_updated = update_latest_properties_dataset(year, month)
     logger.info(f"Properties dataset updated: {properties_updated}")
     
-    # 2. Update prices dataset (append new month data to the latest segment)
-    if year >= 2017:
-        prices_updated = update_latest_prices_dataset(year, month)
-        logger.info(f"Latest prices dataset updated for {year}-{month:02d}: {prices_updated}")
-    else:
-        logger.warning(f"Year {year} is before 2017, not updating latest prices dataset")
-    
-    # 3. Update aggregated prices dataset (append new month data to the latest segment)
+    # 2. Update aggregated prices dataset (append new month data to the latest segment)
     agg_prices_updated = update_latest_aggprices_dataset(year, month)
     logger.info(f"Latest prices dataset updated for {year}-{month:02d}: {agg_prices_updated}")
 
@@ -750,7 +507,7 @@ def extract_multiple_months(start_year, start_month, end_year, end_month):
         month = current.month
         
         print(f"Extracting data for {year}-{month:02d}")
-        extract_monthly_data(year, month)
+        run(year, month)
         
         # Move to next month
         if month == 12:
@@ -762,10 +519,7 @@ def extract_multiple_months(start_year, start_month, end_year, end_month):
         
     print(f"Completed extracting data from {start_year}-{start_month:02d} to {end_year}-{end_month:02d}")
    
-if __name__ == "__main__":
-    # Initialize price segments if they don't exist
-    #initialize_price_segments()
-    
-    extract_monthly_data()
+if __name__ == "__main__":    
+    run()
 
         

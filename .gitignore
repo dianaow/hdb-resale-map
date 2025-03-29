@@ -3,4 +3,8 @@ data
 .DS_Store
 /client/node_modules
 /client/package-lock.json
+/client_old/node_modules
+/client_old/package-lock.json
+/client_old/.env
 data_extraction.log
+.vercel

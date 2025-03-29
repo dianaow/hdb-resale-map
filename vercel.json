@@ -24,5 +24,15 @@
       "src": "/",
       "dest": "client/dist/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/daily_scheduled",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/monthly_scheduled",
+      "schedule": "0 17 31 * *"
+    }
   ]
 }
