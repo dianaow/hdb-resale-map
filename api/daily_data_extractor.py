@@ -284,10 +284,10 @@ def enrich_prices_data(df):
     if 'resale_price' in df.columns and 'floor_area_sqm' in df.columns:
         df['price_per_sqm'] = df['resale_price'] / df['floor_area_sqm']
     
-    # 2. Add month and year columns for easier filtering
-    if 'month' in df.columns:
-        df['year'] = df['month'].dt.year
-        df['month_num'] = df['month'].dt.month
+    # # 2. Add month and year columns for easier filtering
+    # if 'month' in df.columns:
+    #     df['year'] = df['month'].dt.year
+    #     df['month_num'] = df['month'].dt.month
     
     #3 Relabel columns
     df.rename(columns={'month': 'date'}, inplace=True)
@@ -333,8 +333,8 @@ def update_latest_prices_dataset(year, month):
             existing_df = pd.read_csv(LATEST_PRICES_FILE)
             
             # Convert date columns to datetime if needed
-            if 'month' in existing_df.columns and not pd.api.types.is_datetime64_dtype(existing_df['month']):
-                existing_df['month'] = pd.to_datetime(existing_df['month'])
+            if 'date' in existing_df.columns and not pd.api.types.is_datetime64_dtype(existing_df['date']):
+                existing_df['date'] = pd.to_datetime(existing_df['date'])
             
             logger.info(f"Loaded existing dataset with {len(existing_df)} records")
             
@@ -343,16 +343,20 @@ def update_latest_prices_dataset(year, month):
             month_end = (target_month + pd.offsets.MonthEnd(0)).date()
             
             # Remove any existing data for this month to avoid duplicates
-            if 'month' in existing_df.columns:
+            if 'date' in existing_df.columns:
                 existing_df = existing_df[
-                    ~((existing_df['month'] >= target_month) & 
-                      (existing_df['month'] <= pd.Timestamp(month_end)))
+                    ~((existing_df['date'] >= target_month) & 
+                      (existing_df['date'] <= pd.Timestamp(month_end)))
                 ]
                 
                 logger.info(f"Removed existing data for {year}-{month:02d}, {len(existing_df)} records remain")
             
             # Combine with new data
             combined_df = pd.concat([existing_df, month_df], ignore_index=True)
+
+            # Convert datetime column to YYYY-MM-DD strings
+            combined_df['date'] = combined_df['date'].dt.strftime('%Y-%m-%d')
+
             logger.info(f"Combined dataset now has {len(combined_df)} records")
         else:
             # If no existing file, just use the new data
